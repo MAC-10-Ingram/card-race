@@ -1,0 +1,27 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main # main 브랜치에 코드가 푸시될 때 실행
+
+permissions:
+  contents: write # gh-pages 브랜치에 쓰기 권한을 부여
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install and Build
+        run: |
+          npm install
+          npm run build
+
+      - name: Deploy
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          folder: dist # 빌드 결과물이 모여있는 폴더
+          branch: gh-pages # 배포될 타겟 브랜치
