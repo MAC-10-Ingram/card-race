@@ -265,12 +265,32 @@ function nextTurn() {
     return;
   }
   
-  const card = gameState.deck.pop();
-  renderDeck(); // 덱 높이 업데이트
+  // 이미 완주한 말의 카드는 건너뛰기
+  let card = null;
+  while (gameState.deck.length > 0) {
+    const tempCard = gameState.deck.pop();
+    const horse = document.getElementById(`horse-${tempCard.id}`);
+    const pos = horse ? parseInt(horse.dataset.pos) : 0;
+    
+    if (pos < gameState.trackLength) {
+      card = tempCard;
+      break;
+    }
+    // 이미 완주한 말의 카드라면 그냥 버리고 다음 카드로 진행 (로그 출력 생략 가능)
+  }
+  
+  if (!card) {
+    console.log('유효한 카드가 더 이상 없습니다. 종료합니다.');
+    gameState.isRacing = false;
+    checkWinner(); // 최종 판정 강제 실행
+    return;
+  }
+  
+  renderDeck(); 
   updateCardDisplay(card);
   
-  const baseDelay = 1200 / gameState.speed;
-  const moveDelay = 600 / gameState.speed;
+  const baseDelay = 800 / gameState.speed;
+  const moveDelay = 400 / gameState.speed;
 
   // 카드가 날아오는 시간 뒤에 말이 움직이도록 시차 부여
   setTimeout(() => {
