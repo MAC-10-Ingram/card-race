@@ -9,8 +9,8 @@ const startGameBtn = document.getElementById('start-game-btn');
 const restartBtn = document.getElementById('restart-btn');
 
 let players = [
-  { id: 1, name: '레드베어', color: '#ef4444', weight: 1 },
-  { id: 2, name: '블루호크', color: '#3b82f6', weight: 1 },
+  { id: 1, name: '레드베어', color: '#ef4444', weight: 1, energySuit: '♠', energy: 0 },
+  { id: 2, name: '블루호크', color: '#3b82f6', weight: 1, energySuit: '♥', energy: 0 },
 ];
 
 const screens = {
@@ -27,6 +27,12 @@ function renderPlayerList() {
     item.innerHTML = `
       <div class="color-dot" style="background-color: ${player.color}"></div>
       <input type="text" value="${player.name}" onchange="updatePlayer(${index}, 'name', this.value)" placeholder="이름">
+      <select class="suit-select" onchange="updatePlayer(${index}, 'energySuit', this.value)">
+        <option value="♠" ${player.energySuit === '♠' ? 'selected' : ''}>♠</option>
+        <option value="♥" ${player.energySuit === '♥' ? 'selected' : ''}>♥</option>
+        <option value="♣" ${player.energySuit === '♣' ? 'selected' : ''}>♣</option>
+        <option value="♦" ${player.energySuit === '♦' ? 'selected' : ''}>♦</option>
+      </select>
       <div class="weight-control">
         <span>비중:</span>
         <input type="number" value="${player.weight}" min="1" max="10" onchange="updatePlayer(${index}, 'weight', this.value)">
@@ -62,7 +68,9 @@ addPlayerBtn?.addEventListener('click', () => {
     id: Date.now(),
     name: `말 ${players.length + 1}`,
     color: newColor,
-    weight: 1
+    weight: 1,
+    energySuit: ['♠', '♥', '♣', '♦'][players.length % 4],
+    energy: 0
   });
   renderPlayerList();
   // 꼴찌 선택 중일 경우 등수 자동 갱신
@@ -120,7 +128,11 @@ let gameState = {
   deck: [],
   trackLength: 7,
   winCondition: '1',
-  isRacing: false
+  isRacing: false,
+  enableFaltering: false,
+  enableStumble: false,
+  enableEnergy: false,
+  trackCards: []
 };
 
 let lastLeaderId = null;
@@ -144,6 +156,26 @@ function initGame() {
   // 현재 설정된 속도 반영
   gameState.speed = parseFloat(speedSelect.value);
   document.documentElement.style.setProperty('--speed-multiplier', gameState.speed);
+  
+  const falteringCheck = document.getElementById('rule-faltering')?.checked;
+  const stumbleCheck = document.getElementById('rule-stumble')?.checked;
+  const energyCheck = document.getElementById('rule-energy')?.checked;
+  
+  gameState.enableFaltering = !!falteringCheck;
+  gameState.enableStumble = !!stumbleCheck;
+  gameState.enableEnergy = !!energyCheck;
+
+  // Track cards generation
+  gameState.trackCards = [];
+  if (gameState.enableFaltering) {
+    for (let i = 0; i < gameState.trackLength; i++) {
+        const randomPlayer = players[Math.floor(Math.random() * players.length)];
+        gameState.trackCards.push({ id: randomPlayer.id, color: randomPlayer.color, flipped: false });
+    }
+  }
+
+  // Energy reset
+  players.forEach(p => p.energy = 0);
   
   gameState.deck = createWeightedDeck(players);
   
@@ -211,6 +243,19 @@ function createWeightedDeck(playerData) {
     const j = Math.floor(Math.random() * (i + 1));
     [deck[i], deck[j]] = [deck[j], deck[i]];
   }
+
+  // 조커 추가 (헛딛임 활성화시 덱의 1/15 장, 최소 2장 추가 후 다시 셔플)
+  if (gameState.enableStumble) {
+    const jokerCount = Math.max(2, Math.floor(totalSlots / 15));
+    for(let i=0; i<jokerCount; i++) {
+      deck.push({ id: 'joker', name: '조커', color: '#64748b' });
+    }
+    // 다시 셔플
+    for (let i = deck.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [deck[i], deck[j]] = [deck[j], deck[i]];
+    }
+  }
   
   return deck;
 }
@@ -220,17 +265,21 @@ const commentaries = {
   move: ["{name}, 무서운 기세로 치고 나옵니다!", "{name} 선수가 한 칸 전진합니다!", "{name}, 힘을 냅니다!"],
   overtake: ["오오! {name}(이)가 순위를 뒤집습니다!", "{name}, 역전에 성공합니다!", "순위가 요동치고 있습니다!"],
   nearFinish: ["{name}, 결승선이 코앞입니다!", "이제 한 칸 남았습니다! {name}!", "마지막 스퍼트를 올리는 {name}!"],
-  finish: ["{name}! {name}! 1등으로 들어옵니다!", "결정됐습니다! 오늘의 우승은 {name}!", "모두 박수 부탁드립니다. {name} 우승!"]
+  finish: ["{name}! {name}! 1등으로 들어옵니다!", "결정됐습니다! 오늘의 우승은 {name}!", "모두 박수 부탁드립니다. {name} 우승!"],
+  custom: ["{text}"]
 };
 
 
 function updateCommentary(type, data = {}) {
   const box = document.getElementById('commentary-text');
-  const pool = commentaries[type];
+  const pool = commentaries[type] || commentaries['move'];
   let text = pool[Math.floor(Math.random() * pool.length)];
   
   if (data.name) {
     text = text.replace(/{name}/g, data.name);
+  }
+  if (data.text) {
+    text = text.replace(/{text}/g, data.text);
   }
   
   box.style.opacity = 0;
@@ -341,7 +390,7 @@ function renderTrack() {
   const trackArea = document.querySelector('.track-area');
   trackArea.innerHTML = '';
   
-  players.forEach(player => {
+  players.forEach((player, pIndex) => {
     const lane = document.createElement('div');
     lane.className = 'lane';
     lane.id = `lane-${player.id}`;
@@ -351,6 +400,21 @@ function renderTrack() {
       const cell = document.createElement('div');
       cell.className = 'cell';
       if (i === gameState.trackLength) cell.classList.add('finish-line');
+      
+      // 첫 번째 레인에만 엎어둔 트랙 카드 렌더링 (절룩거림 규칙 활성화 시)
+      if (pIndex === 0 && i > 0 && i <= gameState.trackLength && gameState.enableFaltering) {
+        const cardData = gameState.trackCards[i - 1];
+        const trackCardContainer = document.createElement('div');
+        trackCardContainer.className = 'track-card-container';
+        trackCardContainer.innerHTML = `
+          <div class="track-card" id="track-card-${i}">
+            <div class="track-card-face track-card-front" style="color: ${cardData.color}">●</div>
+            <div class="track-card-face track-card-back"></div>
+          </div>
+        `;
+        cell.appendChild(trackCardContainer);
+      }
+      
       lane.appendChild(cell);
     }
     
@@ -390,6 +454,10 @@ function nextTurn() {
   let card = null;
   while (gameState.deck.length > 0) {
     const tempCard = gameState.deck.pop();
+    if (tempCard.id === 'joker') {
+      card = tempCard;
+      break;
+    }
     const horse = document.getElementById(`horse-${tempCard.id}`);
     const pos = horse ? parseInt(horse.dataset.pos) : 0;
     
@@ -397,7 +465,6 @@ function nextTurn() {
       card = tempCard;
       break;
     }
-    // 이미 완주한 말의 카드라면 그냥 버리고 다음 카드로 진행 (로그 출력 생략 가능)
   }
   
   if (!card) {
@@ -408,41 +475,77 @@ function nextTurn() {
   }
   
   renderDeck(); 
-  updateCardDisplay(card);
+  const suits = ['♠', '♥', '♣', '♦'];
+  const drawnSuit = suits[Math.floor(Math.random() * suits.length)];
+  updateCardDisplay(card, drawnSuit);
   
   const baseDelay = 800 / gameState.speed;
   const moveDelay = 400 / gameState.speed;
 
-  // 카드가 날아오는 시간 뒤에 말이 움직이도록 시차 부여
   setTimeout(() => {
-    moveHorse(card);
-    
-    // 상황 판단 로직
-    const horse = document.getElementById(`horse-${card.id}`);
-    const pos = parseInt(horse.dataset.pos);
-    const currentStandings = players.map(p => {
-      const h = document.getElementById(`horse-${p.id}`);
-      return {
-        id: p.id,
-        name: p.name,
-        pos: h ? parseInt(h.dataset.pos) : 0
-      };
-    }).sort((a, b) => b.pos - a.pos);
-    
-    const currentLeader = currentStandings[0];
-    
-    if (pos >= gameState.trackLength) {
-       updateCommentary('finish', { name: card.name });
-    } else if (pos === gameState.trackLength - 1) {
-      updateCommentary('nearFinish', { name: card.name });
-    } else if (lastLeaderId && lastLeaderId !== currentLeader.id) {
-      updateCommentary('overtake', { name: currentLeader.name });
-      lastLeaderId = currentLeader.id;
-    } else if (Math.random() > 0.7) {
-      updateCommentary('move', { name: card.name });
+    let energyNames = [];
+    if (gameState.enableEnergy) {
+      players.forEach(p => {
+        const h = document.getElementById(`horse-${p.id}`);
+        if (h && parseInt(h.dataset.pos) < gameState.trackLength) {
+            if (p.energySuit === drawnSuit) {
+              p.energy++;
+              if (p.energy >= 3) {
+                  p.energy = 0;
+                  energyNames.push(p.name);
+                  moveHorse(p, false); // 에너지 도약 시 절룩거림 체크 생략
+              }
+            }
+        }
+      });
+      if (energyNames.length > 0) {
+        updateCommentary('custom', { text: `⚡ 에너지 돌파! [${energyNames.join(', ')}] 추가 전진!` });
+      }
     }
-    
-    if (!lastLeaderId) lastLeaderId = currentLeader.id;
+
+    if (card.id === 'joker') {
+        const currentStandings = players.map(p => {
+          const h = document.getElementById(`horse-${p.id}`);
+          return { id: p.id, pos: h ? parseInt(h.dataset.pos) : 0 };
+        }).sort((a, b) => b.pos - a.pos);
+        
+        const leaderPos = currentStandings[0].pos;
+        const leaders = currentStandings.filter(p => p.pos === leaderPos).map(p => p.id);
+        
+        players.forEach(p => {
+            if (!leaders.includes(p.id)) {
+                const h = document.getElementById(`horse-${p.id}`);
+                if (h && parseInt(h.dataset.pos) < gameState.trackLength) {
+                    moveHorse(p, false); 
+                }
+            }
+        });
+        updateCommentary('custom', { text: `🃏 헛딛임 발동! 선두를 제외한 모든 말들이 전진합니다!` });
+    } else {
+        moveHorse(card, true); // 일반 이동 시 절룩거림 체크
+        
+        const horse = document.getElementById(`horse-${card.id}`);
+        const pos = parseInt(horse.dataset.pos);
+        const currentStandings = players.map(p => {
+          const h = document.getElementById(`horse-${p.id}`);
+          return { id: p.id, name: p.name, pos: h ? parseInt(h.dataset.pos) : 0 };
+        }).sort((a, b) => b.pos - a.pos);
+        
+        const currentLeader = currentStandings[0];
+        
+        if (pos >= gameState.trackLength) {
+           updateCommentary('finish', { name: card.name });
+        } else if (pos === gameState.trackLength - 1) {
+          updateCommentary('nearFinish', { name: card.name });
+        } else if (lastLeaderId && lastLeaderId !== currentLeader.id) {
+          updateCommentary('overtake', { name: currentLeader.name });
+          lastLeaderId = currentLeader.id;
+        } else if (energyNames.length === 0 && Math.random() > 0.7) {
+          updateCommentary('move', { name: card.name });
+        }
+        
+        if (!lastLeaderId) lastLeaderId = currentLeader.id;
+    }
 
     // 다음 턴 대기
     setTimeout(() => {
@@ -456,10 +559,10 @@ function nextTurn() {
   }, moveDelay);
 }
 
-function updateCardDisplay(player) {
+function updateCardDisplay(player, forcedSuit = null) {
   const cardSlot = document.getElementById('current-card');
   const suits = ['♠', '♥', '♣', '♦'];
-  const suit = suits[Math.floor(Math.random() * suits.length)];
+  const suit = forcedSuit || suits[Math.floor(Math.random() * suits.length)];
   
   cardSlot.innerHTML = `
     <div class="playing-card" style="border-color: ${player.color}">
@@ -469,7 +572,7 @@ function updateCardDisplay(player) {
   `;
 }
 
-function moveHorse(player) {
+function moveHorse(player, checkFaltering = true) {
   const horse = document.getElementById(`horse-${player.id}`);
   const lane = document.getElementById(`lane-${player.id}`);
   if (!horse || !lane) return;
@@ -505,6 +608,38 @@ function moveHorse(player) {
     if (trackingMode === 'auto' || trackingMode === player.id) {
       centerCameraOnHorse(player.id);
     }
+
+    // Faltering Check
+    if (checkFaltering && gameState.enableFaltering && pos > 0 && pos <= gameState.trackLength) {
+      const cardData = gameState.trackCards[pos - 1];
+      if (!cardData.flipped) {
+        cardData.flipped = true;
+        const cardEl = document.getElementById(`track-card-${pos}`);
+        if (cardEl) {
+          cardEl.classList.add('flipped');
+          if (cardData.id === player.id) {
+            setTimeout(() => {
+              updateCommentary('custom', { text: `앗! 절룩거림! ${player.name} 뒤로 후퇴합니다!` });
+              horse.classList.add('faltering-bounce');
+              setTimeout(() => horse.classList.remove('faltering-bounce'), 500);
+              
+              pos = pos - 1;
+              horse.dataset.pos = pos;
+              globalMoveTick++;
+              horse.dataset.moveTick = globalMoveTick;
+              const backCell = lane.children[pos];
+              if (layout === 'vertical') {
+                horse.style.top = `${backCell.offsetTop + (backCell.offsetHeight / 2) - 22}px`;
+              } else {
+                horse.style.left = `${backCell.offsetLeft + (backCell.offsetWidth / 2) - 22}px`;
+              }
+              updateRankings();
+              updateMinimap();
+            }, 600);
+          }
+        }
+      }
+    }
   }
   
   updateRankings();
@@ -534,9 +669,22 @@ function updateRankings() {
     const li = document.createElement('li');
     li.className = 'rank-item' + (trackingMode === p.id ? ' tracking' : '');
     li.style.borderLeftColor = p.color;
+    let energyHtml = '';
+    if (gameState.enableEnergy) {
+      energyHtml = `
+        <div class="energy-area" title="에너지 무늬: ${p.energySuit}">
+          <span class="energy-icon">⚡</span>
+          <div class="energy-dot ${p.energy >= 1 ? 'filled' : ''}"></div>
+          <div class="energy-dot ${p.energy >= 2 ? 'filled' : ''}"></div>
+          <div class="energy-dot ${p.energy >= 3 ? 'filled' : ''}"></div>
+        </div>
+      `;
+    }
+
     li.innerHTML = `
       <span class="rank-pos">${index + 1}</span>
       <span class="rank-name">${p.name}</span>
+      ${energyHtml}
     `;
     li.onclick = () => {
       trackingMode = p.id;
