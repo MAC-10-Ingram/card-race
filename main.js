@@ -269,7 +269,11 @@ const commentaries = {
   move: [
     "{name}, 모래바람을 일으키며 파죽지세로 치고 나옵니다!",
     "폭발적인 스피드! {name} 매섭게 차고 나갑니다!",
-    "{name}, 거침없는 질주! 페이스를 무섭게 끌어올립니다!"
+    "{name}, 거침없는 질주! 페이스를 무섭게 끌어올립니다!",
+    "{name}, 맹렬한 기세로 앞을 향해 달려갑니다!",
+    "치열한 각축전 속에서 {name}(이)가 한 발짝 앞서갑니다!",
+    "관중들의 환호 속에 {name}, 힘찬 발걸음을 보여줍니다!",
+    "{name}, 엄청난 탄력을 받았습니다! 무서운 집중력입니다!"
   ],
   overtake: [
     "아앗! 관중석이 술렁입니다! {name}(이)가 아웃코스에서 추월에 성공합니다!",
@@ -583,7 +587,7 @@ function nextTurn() {
         } else if (lastLeaderId && lastLeaderId !== currentLeader.id) {
           updateCommentary('overtake', { name: currentLeader.name });
           lastLeaderId = currentLeader.id;
-        } else if (energyNames.length === 0 && Math.random() > 0.7) {
+        } else if (energyNames.length === 0) {
           updateCommentary('move', { name: card.name });
         }
         
@@ -724,9 +728,13 @@ function updateRankings() {
       `;
     }
 
+    const remaining = gameState.trackLength - p.pos;
+    const distanceText = remaining > 0 ? `${remaining}칸 남음` : '골인';
+
     li.innerHTML = `
-      <span class="rank-pos">${index + 1}</span>
+      <span class="rank-pos">${index + 1}위</span>
       <span class="rank-name">${p.name}</span>
+      <span class="rank-dist" style="font-size: 0.8rem; color: var(--text-dim); margin-left: auto; padding-right: 10px;">${distanceText}</span>
       ${energyHtml}
     `;
     li.onclick = () => {
