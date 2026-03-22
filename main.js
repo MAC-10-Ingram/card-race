@@ -123,6 +123,10 @@ let gameState = {
   isRacing: false
 };
 
+let lastLeaderId = null;
+let finishCounter = 0; // 도착 순서 기록용
+let globalMoveTick = 0; // 트랙 내 선착순 판정용
+
 function initGame() {
   const trackLengthInput = document.getElementById('track-length');
   const winConditionSelect = document.getElementById('win-condition');
@@ -133,6 +137,10 @@ function initGame() {
   gameState.winCondition = winConditionSelect.value;
   gameState.customRank = parseInt(customRankInput.value);
   
+  // 게임 초기화 시 카운터 리셋
+  finishCounter = 0;
+  globalMoveTick = 0;
+  
   // 현재 설정된 속도 반영
   gameState.speed = parseFloat(speedSelect.value);
   document.documentElement.style.setProperty('--speed-multiplier', gameState.speed);
@@ -142,10 +150,27 @@ function initGame() {
   console.log('게임 시작! 덱 규모:', gameState.deck.length);
   renderTrack();
   renderDeck();
+  renderMinimap();
   updateRankings();
   
   // 트랙 렌더링 후 약간의 지연을 두어 애니메이션이 먹히도록 한 뒤 시작
-  setTimeout(startRace, 1000);
+  setTimeout(() => {
+    players.forEach(p => {
+        // init position
+        const horse = document.getElementById(`horse-${p.id}`);
+        const lane = document.getElementById(`lane-${p.id}`);
+        const cell = lane.children[0];
+        const layout = getOrientationLayout();
+        if (layout === 'vertical') {
+          horse.style.top = `${cell.offsetTop + (cell.offsetHeight / 2) - 22}px`;
+          horse.style.left = '50%';
+        } else {
+          horse.style.left = `${cell.offsetLeft + (cell.offsetWidth / 2) - 22}px`;
+          horse.style.top = '50%';
+        }
+    });
+    startRace();
+  }, 1000);
 }
 
 function renderDeck() {
@@ -198,8 +223,6 @@ const commentaries = {
   finish: ["{name}! {name}! 1등으로 들어옵니다!", "결정됐습니다! 오늘의 우승은 {name}!", "모두 박수 부탁드립니다. {name} 우승!"]
 };
 
-let lastLeaderId = null;
-let finishCounter = 0; // 도착 순서 기록용
 
 function updateCommentary(type, data = {}) {
   const box = document.getElementById('commentary-text');
@@ -216,6 +239,109 @@ function updateCommentary(type, data = {}) {
     box.style.opacity = 1;
   }, 300);
 }
+
+// Orientation & View Helpers
+function getOrientationLayout() {
+  return window.matchMedia("(max-aspect-ratio: 1/1)").matches || window.matchMedia("(max-width: 768px)").matches ? 'vertical' : 'horizontal';
+}
+
+function centerCameraOnHorse(id) {
+  const horse = document.getElementById(`horse-${id}`);
+  const lane = document.getElementById(`lane-${id}`);
+  const trackArea = document.querySelector('.track-area');
+  if (!horse || !lane || !trackArea) return;
+  
+  const layout = getOrientationLayout();
+  const pos = parseInt(horse.dataset.pos);
+  const targetCell = lane.children[pos];
+  
+  if (layout === 'vertical') {
+    trackArea.scrollTo({
+      top: targetCell.offsetTop - trackArea.clientHeight / 2 + targetCell.offsetHeight / 2,
+      behavior: 'smooth'
+    });
+  } else {
+    trackArea.scrollTo({
+      left: targetCell.offsetLeft - trackArea.clientWidth / 2 + targetCell.offsetWidth / 2,
+      behavior: 'smooth'
+    });
+  }
+}
+
+// Minimap functions
+function renderMinimap() {
+  const minimap = document.getElementById('minimap-track');
+  if(!minimap) return;
+  minimap.innerHTML = '';
+  players.forEach(p => {
+    const dot = document.createElement('div');
+    dot.className = 'minimap-dot';
+    dot.style.backgroundColor = p.color;
+    dot.id = `minimap-dot-${p.id}`;
+    minimap.appendChild(dot);
+  });
+  updateMinimap();
+}
+
+function updateMinimap() {
+  const layout = getOrientationLayout();
+  players.forEach(p => {
+    const horse = document.getElementById(`horse-${p.id}`);
+    const dot = document.getElementById(`minimap-dot-${p.id}`);
+    if (horse && dot) {
+      const pos = parseInt(horse.dataset.pos);
+      const ratio = Math.min((pos / gameState.trackLength), 1) * 100;
+      if (layout === 'vertical') {
+        dot.style.top = `${ratio}%`;
+        dot.style.left = '50%';
+      } else {
+        dot.style.left = `${ratio}%`;
+        dot.style.top = '50%';
+      }
+    }
+  });
+}
+
+// Camera Tracking logic
+let trackingMode = 'auto'; // 'auto' or player id
+const autoTrackBtn = document.getElementById('auto-track-btn');
+autoTrackBtn?.addEventListener('click', () => {
+  trackingMode = 'auto';
+  autoTrackBtn.classList.add('active');
+  updateRankings();
+  if (lastLeaderId) centerCameraOnHorse(lastLeaderId);
+});
+
+window.addEventListener('resize', () => {
+  if (gameState.isRacing || gameState.deck.length > 0) {
+    players.forEach(p => {
+      const horse = document.getElementById(`horse-${p.id}`);
+      const lane = document.getElementById(`lane-${p.id}`);
+      if (horse && lane) {
+        const layout = getOrientationLayout();
+        const pos = parseInt(horse.dataset.pos);
+        const targetCell = lane.children[pos];
+        if (targetCell) {
+          if (layout === 'vertical') {
+            horse.style.top = `${targetCell.offsetTop + (targetCell.offsetHeight / 2) - 22}px`;
+            horse.style.left = '50%';
+          } else {
+            horse.style.left = `${targetCell.offsetLeft + (targetCell.offsetWidth / 2) - 22}px`;
+            horse.style.top = '50%';
+          }
+        }
+      }
+    });
+    updateMinimap();
+    
+    if (trackingMode !== 'auto') {
+      centerCameraOnHorse(trackingMode);
+    } else if (lastLeaderId) {
+      centerCameraOnHorse(lastLeaderId); // fallback to leader
+    }
+  }
+});
+
 
 function renderTrack() {
   const trackArea = document.querySelector('.track-area');
@@ -245,11 +371,10 @@ function renderTrack() {
     lane.children[0].appendChild(horse);
     trackArea.appendChild(lane);
     
-    // 초기 위치 강제 설정 (렌더링 직후 위치 잡기)
-    requestAnimationFrame(() => {
-      const startCell = lane.children[0];
-      horse.style.left = `${startCell.offsetLeft + (startCell.offsetWidth / 2) - 22}px`;
-    });
+    // 초기 위치 강제 설정 (렌더링 직후 위치 기준점 세팅용 - 나중에 타이머로 재조정)
+    horse.dataset.moveTick = 0;
+    horse.style.left = `-100px`;
+    horse.style.top = `-100px`;
   });
 }
 
@@ -362,8 +487,18 @@ function moveHorse(player) {
   const targetCell = lane.children[pos];
   if (targetCell) {
     horse.dataset.pos = pos;
-    // 부드러운 이동을 위한 위치 계산 (부모 대비 offset)
-    horse.style.left = `${targetCell.offsetLeft + (targetCell.offsetWidth / 2) - 22}px`;
+    globalMoveTick++;
+    horse.dataset.moveTick = globalMoveTick; // 이동 시점 기록
+    
+    const layout = getOrientationLayout();
+    
+    if (layout === 'vertical') {
+      horse.style.top = `${targetCell.offsetTop + (targetCell.offsetHeight / 2) - 22}px`;
+      horse.style.left = '50%';
+    } else {
+      horse.style.left = `${targetCell.offsetLeft + (targetCell.offsetWidth / 2) - 22}px`;
+      horse.style.top = '50%';
+    }
     
     // 도착 시 시각적 효과 및 도착 순서 기록
     if (pos === gameState.trackLength && parseInt(horse.dataset.finishOrder) === 999) {
@@ -371,9 +506,15 @@ function moveHorse(player) {
       horse.dataset.finishOrder = finishCounter;
       horse.classList.add('finished');
     }
+    
+    // Tracking mode action
+    if (trackingMode === 'auto' || trackingMode === player.id) {
+      centerCameraOnHorse(player.id);
+    }
   }
   
   updateRankings();
+  updateMinimap();
 }
 
 function updateRankings() {
@@ -385,22 +526,31 @@ function updateRankings() {
     return {
       ...p,
       pos: horse ? parseInt(horse.dataset.pos) : 0,
-      finishOrder: horse ? parseInt(horse.dataset.finishOrder) : 999
+      finishOrder: horse ? parseInt(horse.dataset.finishOrder) : 999,
+      moveTick: horse ? parseInt(horse.dataset.moveTick) : 0
     };
   }).sort((a, b) => {
     if (b.pos !== a.pos) return b.pos - a.pos; // 1차 기준: 위치 (내림차순)
-    return a.finishOrder - b.finishOrder; // 2차 기준: 선착순 (오름차순, 작은 숫자가 우선)
+    if (a.finishOrder !== b.finishOrder) return a.finishOrder - b.finishOrder; // 2차 기준: 완주 순서 (오름차순)
+    return a.moveTick - b.moveTick; // 3차 기준: 해당 위치 도달 선착순 (오름차순 - 작을수록 먼저 도착함)
   });
   
   rankList.innerHTML = '';
   standings.forEach((p, index) => {
     const li = document.createElement('li');
-    li.className = 'rank-item';
+    li.className = 'rank-item' + (trackingMode === p.id ? ' tracking' : '');
     li.style.borderLeftColor = p.color;
     li.innerHTML = `
       <span class="rank-pos">${index + 1}</span>
       <span class="rank-name">${p.name}</span>
     `;
+    li.onclick = () => {
+      trackingMode = p.id;
+      const autoBtn = document.getElementById('auto-track-btn');
+      if(autoBtn) autoBtn.classList.remove('active');
+      updateRankings();
+      centerCameraOnHorse(p.id);
+    };
     rankList.appendChild(li);
   });
 }
@@ -421,9 +571,15 @@ function checkWinner() {
       const horse = document.getElementById(`horse-${p.id}`);
       return {
         ...p,
-        pos: parseInt(horse.dataset.pos)
+        pos: parseInt(horse.dataset.pos),
+        finishOrder: parseInt(horse.dataset.finishOrder),
+        moveTick: parseInt(horse.dataset.moveTick)
       };
-    }).sort((a, b) => b.pos - a.pos);
+    }).sort((a, b) => {
+      if (b.pos !== a.pos) return b.pos - a.pos;
+      if (a.finishOrder !== b.finishOrder) return a.finishOrder - b.finishOrder;
+      return a.moveTick - b.moveTick;
+    });
     
     let winner;
     if (gameState.winCondition === 'last') {

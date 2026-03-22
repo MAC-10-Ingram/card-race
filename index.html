@@ -68,6 +68,9 @@
           </div>
         </div>
         <div class="game-layout">
+          <div class="minimap-container glass-card" style="padding: 10px;">
+            <div class="minimap-track" id="minimap-track"></div>
+          </div>
           <div class="track-area">
             <!-- 레이싱 트랙 영역 -->
           </div>
@@ -80,7 +83,10 @@
               </div>
             </div>
             <div class="ranking-board glass-card">
-              <h3>실시간 순위</h3>
+              <div class="ranking-header">
+                <h3>실시간 순위</h3>
+                <button id="auto-track-btn" class="track-btn active">Auto 카메라</button>
+              </div>
               <ul id="rank-list"></ul>
             </div>
           </div>
