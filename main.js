@@ -261,11 +261,31 @@ function createWeightedDeck(playerData) {
 }
 
 const commentaries = {
-  start: ["자! 드디어 경주가 시작됩니다!", "각 말들, 힘차게 출발합니다!", "오늘의 승자는 누가 될까요?"],
-  move: ["{name}, 무서운 기세로 치고 나옵니다!", "{name} 선수가 한 칸 전진합니다!", "{name}, 힘을 냅니다!"],
-  overtake: ["오오! {name}(이)가 순위를 뒤집습니다!", "{name}, 역전에 성공합니다!", "순위가 요동치고 있습니다!"],
-  nearFinish: ["{name}, 결승선이 코앞입니다!", "이제 한 칸 남았습니다! {name}!", "마지막 스퍼트를 올리는 {name}!"],
-  finish: ["{name}! {name}! 1등으로 들어옵니다!", "결정됐습니다! 오늘의 우승은 {name}!", "모두 박수 부탁드립니다. {name} 우승!"],
+  start: [
+    "게이트 열렸습니다! 드디어 본격적인 레이스가 시작됩니다!",
+    "출발 기립! 각 마필들, 맹렬하게 튀어나갑니다!",
+    "관중들의 거대한 함성과 함께 레이스 1막이 오릅니다! 과연 오늘의 승자는?"
+  ],
+  move: [
+    "{name}, 모래바람을 일으키며 파죽지세로 치고 나옵니다!",
+    "폭발적인 스피드! {name} 매섭게 차고 나갑니다!",
+    "{name}, 거침없는 질주! 페이스를 무섭게 끌어올립니다!"
+  ],
+  overtake: [
+    "아앗! 관중석이 술렁입니다! {name}(이)가 아웃코스에서 추월에 성공합니다!",
+    "순위가 요동칩니다! {name}, 믿을 수 없는 벼락같은 앞지르기!",
+    "대단한 탄력입니다! {name}(이)가 단숨에 판도를 뒤집습니다!"
+  ],
+  nearFinish: [
+    "{name}, 마지막 4코너 돌면서 결승선이 눈앞입니다!",
+    "이제 남은 건 단 한 발짝! {name}, 혼신의 채찍질을 멈추지 않습니다!",
+    "숨막히는 라스트 스퍼트! {name} 맹렬히 파고듭니다!"
+  ],
+  finish: [
+    "결승선 통과! {name}! {name}! {rank}위로 들어옵니다!",
+    "마침내 들어왔습니다! {name}(이)가 {rank}위로 골인합니다!",
+    "엄청난 뒷심을 발휘하며 {name}, 당당히 {rank}위 달성!"
+  ],
   custom: ["{text}"]
 };
 
@@ -281,6 +301,11 @@ function updateCommentary(type, data = {}) {
   if (data.text) {
     text = text.replace(/{text}/g, data.text);
   }
+  if (data.rank) {
+    text = text.replace(/{rank}/g, data.rank);
+  }
+  
+  text = '중계: ' + text;
   
   box.style.opacity = 0;
   setTimeout(() => {
@@ -534,7 +559,7 @@ function nextTurn() {
         const currentLeader = currentStandings[0];
         
         if (pos >= gameState.trackLength) {
-           updateCommentary('finish', { name: card.name });
+           updateCommentary('finish', { name: card.name, rank: horse.dataset.finishOrder });
         } else if (pos === gameState.trackLength - 1) {
           updateCommentary('nearFinish', { name: card.name });
         } else if (lastLeaderId && lastLeaderId !== currentLeader.id) {
