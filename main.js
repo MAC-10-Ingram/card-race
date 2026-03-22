@@ -199,6 +199,7 @@ const commentaries = {
 };
 
 let lastLeaderId = null;
+let finishCounter = 0; // 도착 순서 기록용
 
 function updateCommentary(type, data = {}) {
   const box = document.getElementById('commentary-text');
@@ -239,6 +240,7 @@ function renderTrack() {
     horse.style.backgroundColor = player.color;
     horse.id = `horse-${player.id}`;
     horse.dataset.pos = 0;
+    horse.dataset.finishOrder = 999; // 초기값 (완주 전엔 큰 값)
     
     lane.children[0].appendChild(horse);
     trackArea.appendChild(lane);
@@ -363,8 +365,10 @@ function moveHorse(player) {
     // 부드러운 이동을 위한 위치 계산 (부모 대비 offset)
     horse.style.left = `${targetCell.offsetLeft + (targetCell.offsetWidth / 2) - 22}px`;
     
-    // 도착 시 시각적 효과
-    if (pos === gameState.trackLength) {
+    // 도착 시 시각적 효과 및 도착 순서 기록
+    if (pos === gameState.trackLength && parseInt(horse.dataset.finishOrder) === 999) {
+      finishCounter++;
+      horse.dataset.finishOrder = finishCounter;
       horse.classList.add('finished');
     }
   }
@@ -373,28 +377,31 @@ function moveHorse(player) {
 }
 
 function updateRankings() {
-  const rankListEl = document.getElementById('rank-list');
+  const rankList = document.getElementById('rank-list');
   
   // 현재 말들의 위치 정보를 가져와서 정렬
-  const currentStandings = players.map(p => {
+  const standings = players.map(p => {
     const horse = document.getElementById(`horse-${p.id}`);
     return {
       ...p,
-      pos: parseInt(horse.dataset.pos)
+      pos: horse ? parseInt(horse.dataset.pos) : 0,
+      finishOrder: horse ? parseInt(horse.dataset.finishOrder) : 999
     };
-  }).sort((a, b) => b.pos - a.pos); // 내림차순 정렬
+  }).sort((a, b) => {
+    if (b.pos !== a.pos) return b.pos - a.pos; // 1차 기준: 위치 (내림차순)
+    return a.finishOrder - b.finishOrder; // 2차 기준: 선착순 (오름차순, 작은 숫자가 우선)
+  });
   
-  rankListEl.innerHTML = '';
-  currentStandings.forEach((p, index) => {
+  rankList.innerHTML = '';
+  standings.forEach((p, index) => {
     const li = document.createElement('li');
     li.className = 'rank-item';
     li.style.borderLeftColor = p.color;
     li.innerHTML = `
-      <span class="rank-num">${index + 1}위</span>
+      <span class="rank-pos">${index + 1}</span>
       <span class="rank-name">${p.name}</span>
-      <span class="rank-pos">${p.pos}칸</span>
     `;
-    rankListEl.appendChild(li);
+    rankList.appendChild(li);
   });
 }
 
