@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>트럼프 카드 경마 (Color Racing)</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;700&family=Outfit:wght@400;700&display=swap" rel="stylesheet">
+    <script type="module" crossorigin src="./assets/index-BBF03xYI.js"></script>
+    <link rel="stylesheet" crossorigin href="./assets/index-0Rt0VYgi.css">
+  </head>
+  <body>
+    <div id="app">
+      <!-- 설정 화면 -->
+      <section id="setup-screen" class="screen active">
+        <div class="glass-container">
+          <h1>🏁 트럼프 카드 경마</h1>
+          <p class="subtitle">색상과 확률을 설정하고 경주를 시작하세요!</p>
+          
+          <div class="player-setup-area">
+            <div id="player-list" class="player-list">
+              <!-- 플레이어 추가되는 영역 -->
+            </div>
+            <button id="add-player-btn" class="secondary-btn">+ 플레이어 추가</button>
+          </div>
+
+          <div class="game-settings">
+            <div class="setting-item">
+              <div class="win-condition-row">
+                <label>트랙 길이</label>
+                <input type="number" id="track-length" value="7" min="3" max="15" style="width: 80px;">
+              </div>
+            </div>
+            <div class="setting-item">
+              <div class="win-condition-row">
+                <label>당첨 조건</label>
+                <div class="win-condition-group">
+                  <select id="win-condition">
+                    <option value="1">1등이 당첨</option>
+                    <option value="last">꼴찌가 당첨</option>
+                    <option value="custom">특정 등수 당첨</option>
+                  </select>
+                  <div style="display: flex; align-items: center; gap: 4px;">
+                    <input type="number" id="custom-rank" value="1" min="1" style="width: 60px; text-align: center;">
+                    <span style="font-size: 0.9rem;">등</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="setting-item" style="margin-top: 10px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 10px;">
+              <div class="win-condition-row">
+                <label>
+                  심화 규칙
+                  <span class="info-icon" title="절룩거림: 트랙진입 시 첫 카드가 일치하면 후퇴&#10;헛딛임: 덱에 조커 추가(선두제외 전진)&#10;에너지: 선택무늬 등장 시 에너지 충전, 3초과 시 추가 전진">ℹ️</span>
+                </label>
+                <div class="advanced-rules-group">
+                  <label class="checkbox-label"><input type="checkbox" id="rule-faltering"> 절룩거림</label>
+                  <label class="checkbox-label"><input type="checkbox" id="rule-stumble"> 헛딛임(조커)</label>
+                  <label class="checkbox-label"><input type="checkbox" id="rule-energy"> 에너지 시스템</label>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <button id="start-game-btn" class="primary-btn">레이스 시작!</button>
+        </div>
+      </section>
+
+      <!-- 게임 화면 -->
+      <section id="game-screen" class="screen">
+        <div class="commentary-container">
+          <div id="commentary-text">중계 대기 중...</div>
+          <div class="speed-control">
+            <label>속도</label>
+            <select id="game-speed">
+              <option value="1">1배속</option>
+              <option value="2">2배속</option>
+              <option value="3">3배속</option>
+            </select>
+          </div>
+        </div>
+        
+        <div class="minimap-container glass-card" style="padding: 10px; margin-bottom: 20px;">
+          <div class="minimap-track" id="minimap-track"></div>
+        </div>
+
+        <div class="game-layout">
+          <div class="track-area">
+            <!-- 레이싱 트랙 영역 -->
+          </div>
+          <div class="side-panel">
+            <div class="deck-area glass-card">
+              <h3>카드 덱</h3>
+              <div class="deck-container">
+                <div id="card-deck" class="deck-stack"></div>
+                <div id="current-card" class="card-slot"></div>
+              </div>
+            </div>
+            <div class="ranking-board glass-card">
+              <div class="ranking-header">
+                <h3>실시간 순위</h3>
+                <button id="auto-track-btn" class="track-btn active">Auto 카메라</button>
+              </div>
+              <ul id="rank-list"></ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- 결과 화면 -->
+      <section id="result-screen" class="screen">
+        <div class="glass-container winner-announcement">
+          <h2 id="result-title">🎉 축하합니다!</h2>
+          <div id="winner-display"></div>
+          <button id="restart-btn" class="primary-btn">다시 하기</button>
+        </div>
+      </section>
+    </div>
+  </body>
+</html>
