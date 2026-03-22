@@ -45,6 +45,11 @@ window.removePlayer = (index) => {
   if (players.length > 2) {
     players.splice(index, 1);
     renderPlayerList();
+    // 꼴찌 선택 중일 경우 등수 자동 갱신
+    const winCondition = document.getElementById('win-condition').value;
+    if (winCondition === 'last') {
+      document.getElementById('custom-rank').value = players.length;
+    }
   } else {
     alert('최소 2명의 플레이어가 필요합니다.');
   }
@@ -60,9 +65,31 @@ addPlayerBtn?.addEventListener('click', () => {
     weight: 1
   });
   renderPlayerList();
+  // 꼴찌 선택 중일 경우 등수 자동 갱신
+  const winCondition = document.getElementById('win-condition').value;
+  if (winCondition === 'last') {
+    document.getElementById('custom-rank').value = players.length;
+  }
 });
 
 renderPlayerList();
+
+// 당첨 조건 드롭다운 변경 이벤트
+document.getElementById('win-condition')?.addEventListener('change', (e) => {
+  const customRankInput = document.getElementById('custom-rank');
+  if (e.target.value === '1') {
+    customRankInput.value = 1;
+    customRankInput.readOnly = true;
+    customRankInput.style.opacity = 0.6;
+  } else if (e.target.value === 'last') {
+    customRankInput.value = players.length;
+    customRankInput.readOnly = true;
+    customRankInput.style.opacity = 0.6;
+  } else {
+    customRankInput.readOnly = false;
+    customRankInput.style.opacity = 1;
+  }
+});
 
 function showScreen(screenId) {
   Object.values(screens).forEach(screen => screen.classList.remove('active'));
@@ -89,9 +116,11 @@ let gameState = {
 function initGame() {
   const trackLengthInput = document.getElementById('track-length');
   const winConditionSelect = document.getElementById('win-condition');
+  const customRankInput = document.getElementById('custom-rank');
   
   gameState.trackLength = parseInt(trackLengthInput.value);
   gameState.winCondition = winConditionSelect.value;
+  gameState.customRank = parseInt(customRankInput.value);
   gameState.deck = createWeightedDeck(players);
   
   console.log('게임 시작! 덱 규모:', gameState.deck.length);
@@ -119,14 +148,23 @@ function renderDeck() {
 
 function createWeightedDeck(playerData) {
   let deck = [];
+  const totalSlots = players.length * gameState.trackLength * 2; // 요청된 공식: 말 수 * 트랙 길이 * 2
+  const totalWeight = playerData.reduce((sum, p) => sum + p.weight, 0);
+  
   playerData.forEach(player => {
-    // 각 플레이어의 비중(weight)만큼 카드를 생성 (기본 13장 * 비중)
-    const cardCount = 13 * player.weight;
-    for (let i = 0; i < cardCount; i++) {
+    // 각 플레이어당 가중치 비율에 맞춰 카드 수 계산
+    const playerCount = Math.floor((player.weight / totalWeight) * totalSlots);
+    for (let i = 0; i < playerCount; i++) {
       deck.push({ ...player });
     }
   });
-  
+
+  // 누락된 슬롯만큼 랜덤 채우기 (반올림 오차 대응)
+  while (deck.length < totalSlots) {
+    const randomPlayer = playerData[Math.floor(Math.random() * playerData.length)];
+    deck.push({ ...randomPlayer });
+  }
+
   // Fisher-Yates Shuffle
   for (let i = deck.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -247,6 +285,7 @@ function nextTurn() {
     setTimeout(() => {
       if (checkWinner()) {
         gameState.isRacing = false;
+        console.log('경주 종료!');
       } else {
         nextTurn();
       }
@@ -269,16 +308,24 @@ function updateCardDisplay(player) {
 
 function moveHorse(player) {
   const horse = document.getElementById(`horse-${player.id}`);
-  let currentPos = parseInt(horse.dataset.pos);
-  const nextPos = currentPos + 1;
-  horse.dataset.pos = nextPos;
-  
   const lane = document.getElementById(`lane-${player.id}`);
-  const targetCell = lane.children[nextPos];
+  if (!horse || !lane) return;
   
-  // 중앙 정렬 보정 (말 크기 44px 고려)
-  const targetX = targetCell.offsetLeft + (targetCell.offsetWidth / 2) - 22;
-  horse.style.left = `${targetX}px`;
+  let pos = parseInt(horse.dataset.pos) + 1;
+  // 트랙 끝을 넘지 않도록 제한
+  if (pos > gameState.trackLength) pos = gameState.trackLength;
+  
+  const targetCell = lane.children[pos];
+  if (targetCell) {
+    horse.dataset.pos = pos;
+    // 부드러운 이동을 위한 위치 계산 (부모 대비 offset)
+    horse.style.left = `${targetCell.offsetLeft + (targetCell.offsetWidth / 2) - 22}px`;
+    
+    // 도착 시 시각적 효과
+    if (pos === gameState.trackLength) {
+      horse.classList.add('finished');
+    }
+  }
   
   updateRankings();
 }
@@ -311,17 +358,34 @@ function updateRankings() {
 
 function checkWinner() {
   const horses = document.querySelectorAll('.horse');
-  let winners = [];
+  let finishedCount = 0;
   
   horses.forEach(horse => {
     if (parseInt(horse.dataset.pos) >= gameState.trackLength) {
-      const playerId = horse.id.replace('horse-', '');
-      winners.push(players.find(p => p.id == playerId));
+      finishedCount++;
     }
   });
   
-  if (winners.length > 0) {
-    showResult(winners[0]); // 첫 번째 도착자 기준 (동시 도착 시 로직은 추후 보강 가능)
+  // 모든 말이 들어왔을 때 최종 판정 (특정 등수나 꼴찌 판정을 위해)
+  if (finishedCount === players.length) {
+    const finalStandings = players.map(p => {
+      const horse = document.getElementById(`horse-${p.id}`);
+      return {
+        ...p,
+        pos: parseInt(horse.dataset.pos)
+      };
+    }).sort((a, b) => b.pos - a.pos);
+    
+    let winner;
+    if (gameState.winCondition === 'last') {
+      winner = finalStandings[finalStandings.length - 1];
+    } else if (gameState.winCondition === 'custom') {
+      winner = finalStandings[Math.min(gameState.customRank - 1, finalStandings.length - 1)];
+    } else {
+      winner = finalStandings[0];
+    }
+    
+    showResult(winner);
     return true;
   }
   return false;
@@ -331,14 +395,17 @@ function showResult(winner) {
   const resultTitle = document.getElementById('result-title');
   const winnerDisplay = document.getElementById('winner-display');
   
-  if (gameState.winCondition === 'last') {
-    // 꼴찌 당첨 로직은 추후 모든 말 도착 시 판정으로 보강 필요하나 우선 1등 기준으로 흐름 구현
-    resultTitle.innerText = "🏁 경주 종료!";
-    winnerDisplay.innerHTML = `<h1 style="color: ${winner.color}">${winner.name} 1위 도착!</h1>`;
-  } else {
-    resultTitle.innerText = "🎉 우승 축하합니다!";
-    winnerDisplay.innerHTML = `<h1 style="color: ${winner.color}">${winner.name} 승리!</h1>`;
+  let resultText = "🎊 경주 종료!";
+  let winnerText = `<h1 style="color: ${winner.color}">${winner.name} 당첨!</h1>`;
+  
+  if (gameState.winCondition === 'custom') {
+    resultText = `${gameState.customRank}등 당첨 확정!`;
+  } else if (gameState.winCondition === 'last') {
+    resultText = "꼴찌(벌칙자) 당첨!";
   }
+  
+  resultTitle.innerText = resultText;
+  winnerDisplay.innerHTML = winnerText;
   
   setTimeout(() => showScreen('result'), 1000);
 }
