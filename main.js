@@ -284,20 +284,14 @@ function renderMinimap() {
 }
 
 function updateMinimap() {
-  const layout = getOrientationLayout();
   players.forEach(p => {
     const horse = document.getElementById(`horse-${p.id}`);
     const dot = document.getElementById(`minimap-dot-${p.id}`);
     if (horse && dot) {
       const pos = parseInt(horse.dataset.pos);
       const ratio = Math.min((pos / gameState.trackLength), 1) * 100;
-      if (layout === 'vertical') {
-        dot.style.top = `${ratio}%`;
-        dot.style.left = '50%';
-      } else {
-        dot.style.left = `${ratio}%`;
-        dot.style.top = '50%';
-      }
+      dot.style.left = `${ratio}%`;
+      dot.style.top = '50%';
     }
   });
 }
