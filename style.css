@@ -29,15 +29,16 @@ body {
   min-height: 100vh;
   display: flex;
   justify-content: center;
-  align-items: center;
-  overflow: hidden;
+  align-items: flex-start; /* 중앙 정렬 대신 상단 정렬로 변경하여 콘텐츠가 길 때 상단이 잘리지 않게 함 */
+  overflow-y: auto; /* 세로 스크롤 허용 */
+  padding: 20px 0;
 }
 
 #app {
   width: 100%;
-  height: 100%;
   max-width: 1200px;
   padding: 10px;
+  margin: 0 auto;
 }
 
 .screen {
@@ -50,9 +51,10 @@ body {
 .screen.active {
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start; /* 중앙 정렬 대신 상단 정렬 */
   align-items: center;
   opacity: 1;
+  min-height: 100%;
 }
 
 /* Glassmorphism UI */
@@ -559,7 +561,8 @@ h1 {
   
   .game-layout {
     flex-direction: column;
-    height: 80vh;
+    height: auto; /* 고정 높이 제거 */
+    min-height: 80vh;
     gap: 12px;
   }
   
