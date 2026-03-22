@@ -307,11 +307,29 @@ function updateCommentary(type, data = {}) {
   
   text = '중계: ' + text;
   
-  box.style.opacity = 0;
-  setTimeout(() => {
-    box.innerText = text;
-    box.style.opacity = 1;
-  }, 300);
+  // 최초 호출 시 기본 텍스트 노드 제거
+  if (!box.querySelector('.commentary-line')) {
+    box.innerHTML = '';
+  }
+  
+  const newLine = document.createElement('div');
+  newLine.className = 'commentary-line';
+  newLine.innerText = text;
+  
+  // 기존 라인들을 위로 퇴장 시킴
+  const existingLines = box.querySelectorAll('.commentary-line.active');
+  existingLines.forEach(line => {
+    line.classList.remove('active');
+    line.classList.add('exit');
+    setTimeout(() => line.remove(), 400); // transition 시간과 맞춤
+  });
+  
+  box.appendChild(newLine);
+  
+  // 리플로우 트리거하여 트랜지션 적용되게 함
+  newLine.offsetHeight;
+  
+  newLine.classList.add('active');
 }
 
 // Orientation & View Helpers
