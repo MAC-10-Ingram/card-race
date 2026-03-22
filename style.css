@@ -37,13 +37,14 @@ body {
   width: 100%;
   height: 100%;
   max-width: 1200px;
-  padding: 20px;
+  padding: 10px;
 }
 
 .screen {
   display: none;
   opacity: 0;
   transition: opacity 0.5s ease;
+  width: 100%;
 }
 
 .screen.active {
@@ -522,21 +523,59 @@ h1 {
   transition: opacity 0.3s ease;
 }
 @media (max-width: 768px), (max-aspect-ratio: 1/1) {
+  #app, .screen.active {
+    justify-content: center;
+  }
+  
   .glass-container {
-    padding: 24px;
+    padding: 16px;
   }
   
   .game-layout {
     flex-direction: column;
-    height: auto;
-    min-height: 80vh;
+    height: 80vh;
+    gap: 12px;
   }
   
   .track-area {
     flex-direction: row;
-    height: 55vh;
+    height: 55%; 
+    padding: 12px;
   }
   
+  .side-panel {
+    display: flex;
+    flex-direction: row;
+    gap: 12px;
+    height: 45%;
+  }
+
+  .deck-area, .ranking-board {
+    flex: 1;
+    min-height: unset;
+    padding: 12px;
+    overflow: hidden;
+  }
+
+  .deck-area h3, .ranking-header h3 {
+    font-size: 0.9rem;
+    margin-bottom: 8px;
+  }
+  
+  .deck-container {
+    transform: scale(0.65);
+    transform-origin: top center;
+    height: 120px;
+  }
+  
+  #rank-list li:nth-child(n+4) {
+    display: none;
+  }
+
+  .rank-item {
+    padding: 6px 10px;
+  }
+
   .lane {
     flex-direction: column;
     width: 60px;
@@ -566,12 +605,6 @@ h1 {
     left: 50%;
     top: 0;
     transform: translateX(-50%);
-  }
-  
-  .side-panel {
-    display: flex;
-    flex-direction: column;
-    gap: 16px;
   }
 }
 
