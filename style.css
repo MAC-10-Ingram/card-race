@@ -5,6 +5,7 @@
   --text-main: #f8fafc;
   --text-dim: #94a3b8;
   --accent: #38bdf8;
+  --speed-multiplier: 1;
   
   /* Horse Colors */
   --color-red: #ef4444;
@@ -304,17 +305,18 @@ h1 {
 .horse {
   width: 44px;
   height: 44px;
-  border-radius: 12px;
+  border-radius: 50%;
   position: absolute;
   top: 50%;
+  left: 0;
   transform: translateY(-50%);
-  transition: all 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-  z-index: 10;
+  transition: left calc(0.6s / var(--speed-multiplier)) cubic-bezier(0.34, 1.56, 0.64, 1);
+  box-shadow: 0 4px 15px rgba(0,0,0,0.5);
   display: flex;
   justify-content: center;
   align-items: center;
-  border: 2px solid rgba(255, 255, 255, 0.4);
+  border: 3px solid rgba(255, 255, 255, 0.3);
+  z-index: 10;
 }
 
 .horse::after {
@@ -325,18 +327,56 @@ h1 {
 /* Commentary Top Style */
 .commentary-container {
   width: 100%;
-  max-width: 800px;
+  max-width: 900px;
   background: rgba(0, 0, 0, 0.4);
   backdrop-filter: blur(10px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  padding: 15px 30px;
+  padding: 12px 24px;
   border-radius: 0 0 20px 20px;
   margin-bottom: 30px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 20px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+}
+
+#commentary-text {
+  flex-grow: 1;
   text-align: center;
   font-size: 1.2rem;
   font-weight: 700;
   color: var(--accent);
-  box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+  transition: opacity 0.3s ease;
+}
+
+.speed-control {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 6px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.speed-control label {
+  font-size: 0.8rem;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+.speed-control select {
+  background: transparent;
+  border: none;
+  color: #fff;
+  font-size: 0.85rem;
+  outline: none;
+  cursor: pointer;
+}
+
+.speed-control select option {
+  background-color: #1e293b;
 }
 
 .card-display {
@@ -401,18 +441,18 @@ h1 {
   width: 100%;
   height: 100%;
   background: white;
-  border-radius: 12px;
-  border: 4px solid #fff;
+  border-radius: 8px;
+  border: 2px solid #fff;
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-  animation: cardFlipIn 0.6s cubic-bezier(0.23, 1, 0.32, 1);
+  box-shadow: 0 5px 15px rgba(0,0,0,0.4);
+  animation: cardFlipInSide calc(0.5s / var(--speed-multiplier)) cubic-bezier(0.23, 1, 0.32, 1);
   font-weight: 700;
-  font-size: 1.1rem;
+  font-size: 0.9rem;
   text-align: center;
-  padding: 10px;
+  padding: 5px;
   position: relative;
   backface-visibility: hidden;
 }

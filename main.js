@@ -75,8 +75,11 @@ addPlayerBtn?.addEventListener('click', () => {
 renderPlayerList();
 
 // 당첨 조건 드롭다운 변경 이벤트
-document.getElementById('win-condition')?.addEventListener('change', (e) => {
-  const customRankInput = document.getElementById('custom-rank');
+const winConditionSelect = document.getElementById('win-condition');
+const customRankInput = document.getElementById('custom-rank');
+const speedSelect = document.getElementById('game-speed');
+
+winConditionSelect?.addEventListener('change', (e) => {
   if (e.target.value === '1') {
     customRankInput.value = 1;
     customRankInput.readOnly = true;
@@ -89,6 +92,13 @@ document.getElementById('win-condition')?.addEventListener('change', (e) => {
     customRankInput.readOnly = false;
     customRankInput.style.opacity = 1;
   }
+});
+
+// 실시간 속도 조절 이벤트
+speedSelect?.addEventListener('change', (e) => {
+  gameState.speed = parseFloat(e.target.value);
+  document.documentElement.style.setProperty('--speed-multiplier', gameState.speed);
+  console.log(`속도 변경: ${gameState.speed}배속`);
 });
 
 function showScreen(screenId) {
@@ -117,10 +127,16 @@ function initGame() {
   const trackLengthInput = document.getElementById('track-length');
   const winConditionSelect = document.getElementById('win-condition');
   const customRankInput = document.getElementById('custom-rank');
+  const speedSelect = document.getElementById('game-speed');
   
   gameState.trackLength = parseInt(trackLengthInput.value);
   gameState.winCondition = winConditionSelect.value;
   gameState.customRank = parseInt(customRankInput.value);
+  
+  // 현재 설정된 속도 반영
+  gameState.speed = parseFloat(speedSelect.value);
+  document.documentElement.style.setProperty('--speed-multiplier', gameState.speed);
+  
   gameState.deck = createWeightedDeck(players);
   
   console.log('게임 시작! 덱 규모:', gameState.deck.length);
@@ -253,18 +269,24 @@ function nextTurn() {
   renderDeck(); // 덱 높이 업데이트
   updateCardDisplay(card);
   
-  // 카드가 날아오는 시간(0.4초) 뒤에 말이 움직이도록 시차 부여
+  const baseDelay = 1200 / gameState.speed;
+  const moveDelay = 600 / gameState.speed;
+
+  // 카드가 날아오는 시간 뒤에 말이 움직이도록 시차 부여
   setTimeout(() => {
     moveHorse(card);
     
     // 상황 판단 로직
     const horse = document.getElementById(`horse-${card.id}`);
     const pos = parseInt(horse.dataset.pos);
-    const currentStandings = players.map(p => ({
-      id: p.id,
-      name: p.name,
-      pos: parseInt(document.getElementById(`horse-${p.id}`).dataset.pos)
-    })).sort((a, b) => b.pos - a.pos);
+    const currentStandings = players.map(p => {
+      const h = document.getElementById(`horse-${p.id}`);
+      return {
+        id: p.id,
+        name: p.name,
+        pos: h ? parseInt(h.dataset.pos) : 0
+      };
+    }).sort((a, b) => b.pos - a.pos);
     
     const currentLeader = currentStandings[0];
     
@@ -289,8 +311,8 @@ function nextTurn() {
       } else {
         nextTurn();
       }
-    }, 1200);
-  }, 600);
+    }, baseDelay);
+  }, moveDelay);
 }
 
 function updateCardDisplay(player) {
